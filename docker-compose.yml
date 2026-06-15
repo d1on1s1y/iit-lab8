@@ -1,0 +1,60 @@
+services:
+  rabbitmq:
+    image: rabbitmq:3-management
+    container_name: rabbitmq_lab7
+    ports:
+      - "5672:5672"
+      - "15672:15672"
+    environment:
+      RABBITMQ_DEFAULT_USER: guest
+      RABBITMQ_DEFAULT_PASS: guest
+
+  elasticsearch:
+    image: docker.elastic.co/elasticsearch/elasticsearch:7.17.10
+    container_name: elasticsearch
+    environment:
+      - discovery.type=single-node
+      - "ES_JAVA_OPTS=-Xms512m -Xmx512m"
+    ports:
+      - "9200:9200"
+
+  kibana:
+    image: docker.elastic.co/kibana/kibana:7.17.10
+    container_name: kibana
+    depends_on:
+      - elasticsearch
+    ports:
+      - "5601:5601"
+
+  fluentd:
+    build: ./fluentd
+    container_name: fluentd
+    restart: always
+    depends_on:
+      - elasticsearch
+    volumes:
+      - ./fluentd/fluent.conf:/fluentd/etc/fluent.conf
+    ports:
+      - "24224:24224"
+      - "24224:24224/udp"
+
+  bot_producer:
+    build: ./producer
+    container_name: bot1_producer
+    depends_on:
+      - rabbitmq
+    env_file:
+      - .env
+    environment:
+      - RABBITMQ_HOST=rabbitmq
+
+  bot_consumer:
+    build: ./consumer
+    container_name: bot2_consumer
+    depends_on:
+      - rabbitmq
+    env_file:
+      - .env
+    environment:
+      - RABBITMQ_HOST=rabbitmq
+      - PYTHONUNBUFFERED=1
